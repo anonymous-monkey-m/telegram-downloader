@@ -19,6 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
       - name: Install downloaders (always latest yt-dlp)
         run: |
           pip install --break-system-packages -U yt-dlp gallery-dl || pip install -U yt-dlp gallery-dl

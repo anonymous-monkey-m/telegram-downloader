@@ -1,0 +1,48 @@
+name: telegram-downloader
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: downloader
+  cancel-in-progress: false
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install downloaders (always latest yt-dlp)
+        run: |
+          pip install --break-system-packages -U yt-dlp gallery-dl || pip install -U yt-dlp gallery-dl
+          yt-dlp --version
+
+      - name: Write cookies file (optional)
+        env:
+          COOKIES_TXT: ${{ secrets.COOKIES_TXT }}
+        run: |
+          if [ -n "$COOKIES_TXT" ]; then printf '%s' "$COOKIES_TXT" > "$RUNNER_TEMP/cookies.txt"; fi
+
+      - name: Poll once
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          ALLOWED_CHAT_IDS: ${{ secrets.ALLOWED_CHAT_IDS }}
+          ALLOWED_USER_ID: ${{ secrets.ALLOWED_USER_ID }}
+          COOKIES_FILE: ${{ runner.temp }}/cookies.txt
+          STATE_FILE: state.json
+        run: python3 bot/bot.py
+
+      - name: Save state
+        run: |
+          git config user.name "downloader-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "state update"
+          git push
